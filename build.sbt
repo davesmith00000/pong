@@ -67,6 +67,23 @@ lazy val mygame =
       commandColor     := scala.Console.CYAN,
       descriptionColor := scala.Console.WHITE
     )
+    .enablePlugins(GhpagesPlugin) // Website stuff
+    .settings(
+      siteSourceDirectory      := target.value / "indigoBuildFull",
+      makeSite / includeFilter := "*",
+      makeSite / excludeFilter := ".DS_Store",
+      git.remoteRepo           := "git@github.com:davesmith00000/pong.git",
+      ghpagesNoJekyll          := true
+    )
+
+addCommandAlias(
+  "publishGame",
+  List(
+    "buildGameFull",
+    "makeSite",
+    "ghpagesPushSite"
+  ).mkString(";", ";", "")
+)
 
 addCommandAlias("buildGame", ";compile;fastOptJS;indigoBuild")
 addCommandAlias("buildGameFull", ";compile;fullOptJS;indigoBuildFull")
