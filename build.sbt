@@ -60,6 +60,7 @@ lazy val mygame =
           "buildGameFull",
           "Build the fully optimised web version"
         ).noAlias,
+        UsefulTask("publishGame", "Publish the game to ghpages").noAlias,
         UsefulTask("code", "Launch VSCode").noAlias
       ),
       logoColor        := scala.Console.MAGENTA,
