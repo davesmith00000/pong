@@ -55,7 +55,22 @@ object Pong extends IndigoSandbox[Unit, Model]:
 
       val nextBall = Ball.moveBall(model.ball, model.walls, model.paddles)
 
-      Outcome(model.copy(paddles = nextPaddles, ball = nextBall))
+      def giveVec =
+        val choose = List(1, -1)
+        Vector2(
+          choose(context.dice.roll(2) - 1),
+          choose(context.dice.roll(2) - 1)
+        )
+
+      if nextBall.position.x < -10 then
+        Outcome(
+          model.copy(paddles = nextPaddles, ball = ballStart.withForce(giveVec))
+        )
+      else if nextBall.position.x > 560 then
+        Outcome(
+          model.copy(paddles = nextPaddles, ball = ballStart.withForce(giveVec))
+        )
+      else Outcome(model.copy(paddles = nextPaddles, ball = nextBall))
 
     case _ =>
       Outcome(model)
