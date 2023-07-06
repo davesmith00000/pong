@@ -1,10 +1,8 @@
 package pkg
 
 import indigo.*
+import indigo.physics.*
 import indigo.scenes.*
-import indigoextras.geometry.BoundingBox
-import indigoextras.geometry.LineSegment
-import indigoextras.geometry.Vertex
 
 import scala.scalajs.js.annotation.JSExportTopLevel
 
@@ -26,21 +24,33 @@ object Pong extends IndigoSandbox[Unit, Model]:
   ): Outcome[Startup[Unit]] =
     Outcome(Startup.Success(()))
 
-  val paddle    = Rectangle(10, 50)
-  val ballStart = Ball(Point(270, 195), 10, Vector2(1, 1), 3)
+  val paddle = Rectangle(10, 50)
 
   def initialModel(startupData: Unit): Outcome[Model] =
+    val a = paddle.withPosition(30, 50)
+    val b = paddle.withPosition(510, 50)
+
     Outcome(
       Model(
-        walls = Batch(
-          Rectangle(0, 0, 550, 10),
-          Rectangle(0, 390, 550, 10)
-        ),
-        paddles = Batch(
-          paddle.withPosition(30, 50),
-          paddle.withPosition(510, 50)
-        ),
-        ball = ballStart
+        paddleA = a,
+        paddleB = b,
+        world = World
+          .empty[String]
+          .withColliders(
+            Collider.Box("top wall", BoundingBox(10, 10, 530, 10)).makeStatic,
+            Collider
+              .Box("bottom wall", BoundingBox(10, 380, 530, 10))
+              .makeStatic,
+            Collider
+              .Circle("ball", BoundingCircle(270, 195, 10))
+              .withVelocity(100, 100)
+              .onCollision {
+                case c if c.tag.startsWith("paddle") => Batch(SpeedUp)
+                case _                               => Batch()
+              },
+            Collider.Box("paddle a", a.toBoundingBox),
+            Collider.Box("paddle b", b.toBoundingBox)
+          )
       )
     )
 
@@ -49,28 +59,31 @@ object Pong extends IndigoSandbox[Unit, Model]:
       model: Model
   ): GlobalEvent => Outcome[Model] =
     case FrameTick =>
-      val nextPaddles = model.paddles.map { p =>
-        Model.movePaddle(p, context.inputState.mouse.position.y)
-      }
+      val nextPaddleA =
+        Model.movePaddle(model.paddleA, context.inputState.mouse.position.y)
+      val nextPaddleB =
+        Model.movePaddle(model.paddleB, context.inputState.mouse.position.y)
 
-      val nextBall = Ball.moveBall(model.ball, model.walls, model.paddles)
+      model.world
+        .modifyByTag("paddle a")(_.moveTo(model.paddleA.position.toVertex))
+        .modifyByTag("paddle b")(_.moveTo(model.paddleB.position.toVertex))
+        .update(context.delta)
+        .map { updatedWorld =>
+          model.copy(
+            paddleA = nextPaddleA,
+            paddleB = nextPaddleB,
+            world = updatedWorld
+          )
+        }
 
-      def giveVec =
-        val choose = List(1, -1)
-        Vector2(
-          choose(context.dice.roll(2) - 1),
-          choose(context.dice.roll(2) - 1)
+    case SpeedUp =>
+      Outcome(
+        model.copy(world =
+          model.world.modifyByTag("ball")(b =>
+            b.withVelocity(b.velocity * 1.5)
+          )
         )
-
-      if nextBall.position.x < -10 then
-        Outcome(
-          model.copy(paddles = nextPaddles, ball = ballStart.withForce(giveVec))
-        )
-      else if nextBall.position.x > 560 then
-        Outcome(
-          model.copy(paddles = nextPaddles, ball = ballStart.withForce(giveVec))
-        )
-      else Outcome(model.copy(paddles = nextPaddles, ball = nextBall))
+      )
 
     case _ =>
       Outcome(model)
@@ -81,32 +94,35 @@ object Pong extends IndigoSandbox[Unit, Model]:
   ): Outcome[SceneUpdateFragment] =
     Outcome(
       SceneUpdateFragment(
-        (model.walls ++ model.paddles).map { b =>
-          Shape.Box(b, Fill.Color(RGBA.White))
-        } ++ Batch(
-          Shape.Circle(
-            model.ball.position,
-            model.ball.radius,
-            Fill.Color(RGBA.White)
-          )
-        )
+        model.world.present {
+          case Collider.Circle(_, bounds, _, _, _, _, _, _, _) =>
+            Shape.Circle(
+              bounds.position.toPoint,
+              bounds.radius.toInt,
+              Fill.Color(RGBA.White)
+            )
+
+          case Collider.Box(_, bounds, _, _, _, _, _, _, _) =>
+            Shape.Box(
+              bounds.toRectangle,
+              Fill.Color(RGBA.White)
+            )
+        }
       )
     )
 
 final case class Model(
-    walls: Batch[Rectangle],
-    paddles: Batch[Rectangle],
-    ball: Ball
+    paddleA: Rectangle,
+    paddleB: Rectangle,
+    world: World[String]
 )
 
 object Model:
 
   def movePaddle(paddle: Rectangle, mouseY: Int): Rectangle =
-    val top    = 10
-    val bottom = 400 - 10 - paddle.height
-
-    val maybeY =
-      mouseY - paddle.halfSize.height
+    val top    = 20
+    val bottom = 400 - 20 - paddle.height
+    val maybeY = mouseY - paddle.halfSize.height
 
     val nextY =
       if maybeY <= top then top
@@ -115,45 +131,4 @@ object Model:
 
     paddle.moveTo(paddle.x, nextY)
 
-final case class Ball(position: Point, radius: Int, force: Vector2, speed: Int):
-  def withForce(value: Vector2): Ball = this.copy(force = value)
-  def withSpeed(value: Int): Ball     = this.copy(speed = value)
-
-  def moveBy(amount: Point): Ball =
-    this.copy(position = position + amount)
-
-object Ball:
-
-  def applyForce(b: Ball, f: Vector2): Ball =
-    b.moveBy((Vector2(b.speed) * f).toPoint).withForce(f)
-
-  def moveBall(
-      ball: Ball,
-      walls: Batch[Rectangle],
-      paddles: Batch[Rectangle]
-  ): Ball =
-    val current     = ball.position
-    val ballAdvance = applyForce(ball, ball.force)
-
-    val line =
-      LineSegment(
-        Vertex.fromPoint(current),
-        Vertex.fromPoint(
-          ballAdvance.position + (Point(ball.radius) * ball.force.toPoint)
-        )
-      )
-
-    val wallCollision =
-      walls.exists(w => BoundingBox.fromRectangle(w).lineIntersects(line))
-
-    val paddleCollision =
-      paddles.exists(p => BoundingBox.fromRectangle(p).lineIntersects(line))
-
-    val nextForce =
-      Vector2(
-        if paddleCollision then -ball.force.x else ball.force.x,
-        if wallCollision then -ball.force.y else ball.force.y
-      )
-
-    if wallCollision || paddleCollision then applyForce(ball, nextForce)
-    else ballAdvance
+case object SpeedUp extends GlobalEvent
