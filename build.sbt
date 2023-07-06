@@ -15,7 +15,7 @@ lazy val mygame =
     .settings( // Normal SBT settings
       name         := "pong",
       version      := "0.0.1",
-      scalaVersion := "3.2.2",
+      scalaVersion := "3.3.0",
       organization := "pkg",
       libraryDependencies ++= Seq(
         "org.scalameta" %%% "munit" % "0.7.29" % Test
@@ -35,9 +35,9 @@ lazy val mygame =
       electronInstall       := indigoplugin.ElectronInstall.Latest,
       backgroundColor       := "black",
       libraryDependencies ++= Seq(
-        "io.indigoengine" %%% "indigo-json-circe" % "0.15.0-RC1",
-        "io.indigoengine" %%% "indigo"            % "0.15.0-RC1",
-        "io.indigoengine" %%% "indigo-extras"     % "0.15.0-RC1"
+        "io.indigoengine" %%% "indigo-json-circe" % "0.15.0-RC3",
+        "io.indigoengine" %%% "indigo"            % "0.15.0-RC3",
+        "io.indigoengine" %%% "indigo-extras"     % "0.15.0-RC3"
       )
     )
     .settings(
