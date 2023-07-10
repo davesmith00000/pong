@@ -3,6 +3,7 @@ package pkg
 import indigo.*
 import indigo.physics.*
 import indigo.scenes.*
+import indigo.syntax.*
 
 import scala.scalajs.js.annotation.JSExportTopLevel
 
@@ -31,7 +32,10 @@ object Pong extends IndigoSandbox[Size, Model]:
       context: FrameContext[Size],
       model: Model
   ): GlobalEvent => Outcome[Model] =
-    case FrameTick =>
+    case MouseEvent.Click(_) if model.state.onStartScreen =>
+      Outcome(model.copy(state = GameState.Game))
+
+    case FrameTick if model.state.onGameScreen =>
       val nextPaddleA =
         Model.movePaddle(model.paddleA, context.inputState.mouse.position.y)
       val nextPaddleB =
@@ -88,41 +92,83 @@ object Pong extends IndigoSandbox[Size, Model]:
       context: FrameContext[Size],
       model: Model
   ): Outcome[SceneUpdateFragment] =
-    Outcome(
-      SceneUpdateFragment(
-        Layer(
-          Text(
-            s"score\n${model.scoreA.toString()} - ${model.scoreB.toString()}",
-            2,
-            2,
-            5,
-            Fonts.fontKey,
-            Assets.fontMaterial
-          ).alignCenter
-            .moveTo(550 / 2, 30)
-        ),
-        Layer(
-          model.world.presentNot(c =>
-            c.tag == Tags.LeftGoal || c.tag == Tags.RightGoal
-          ) {
-            case Collider.Circle(_, bounds, _, _, _, _, _, _, _) =>
-              Shape.Circle(
-                bounds.position.toPoint,
-                bounds.radius.toInt,
-                Fill.Color(RGBA.White)
-              )
-
-            case Collider.Box(_, bounds, _, _, _, _, _, _, _) =>
-              Shape.Box(
-                bounds.toRectangle,
-                Fill.Color(RGBA.White)
-              )
-          }
+    model.state match
+      case GameState.Start =>
+        Outcome(
+          SceneUpdateFragment(
+            Text(
+              "Infinite Pong!",
+              2,
+              2,
+              5,
+              Fonts.fontKey,
+              Assets.fontMaterial
+            ).alignCenter
+              .moveTo(context.startUpData.width / 2, 30),
+            Text(
+              "Move your mouse up\nand down to move\nthe paddles.",
+              2,
+              2,
+              5,
+              Fonts.fontKey,
+              Assets.fontMaterial
+            ).alignCenter
+              .moveTo(context.startUpData.width / 2, 90),
+            Text(
+              "click to start!",
+              2,
+              2,
+              5,
+              Fonts.fontKey,
+              Assets.fontMaterial
+                .withAlpha(
+                  Signal
+                    .Pulse(1.second)
+                    .map(p => if p then 1.0 else 0.0)
+                    .at(context.running)
+                )
+            ).alignCenter
+              .moveTo(context.startUpData.width / 2, context.startUpData.height - 60)
+          )
         )
-      )
-    )
+
+      case GameState.Game =>
+        Outcome(
+          SceneUpdateFragment(
+            Layer(
+              Text(
+                s"score\n${model.scoreA.toString()} - ${model.scoreB.toString()}",
+                2,
+                2,
+                5,
+                Fonts.fontKey,
+                Assets.fontMaterial.withAlpha(0.5)
+              ).alignCenter
+                .moveTo(context.startUpData.width / 2, 30)
+            ),
+            Layer(
+              model.world.presentNot(c =>
+                c.tag == Tags.LeftGoal || c.tag == Tags.RightGoal
+              ) {
+                case Collider.Circle(_, bounds, _, _, _, _, _, _, _) =>
+                  Shape.Circle(
+                    bounds.position.toPoint,
+                    bounds.radius.toInt,
+                    Fill.Color(RGBA.White)
+                  )
+
+                case Collider.Box(_, bounds, _, _, _, _, _, _, _) =>
+                  Shape.Box(
+                    bounds.toRectangle,
+                    Fill.Color(RGBA.White)
+                  )
+              }
+            )
+          )
+        )
 
 final case class Model(
+    state: GameState,
     ballStartPosition: Vertex,
     scoreA: Int,
     scoreB: Int,
@@ -159,6 +205,7 @@ object Model:
     val start = (viewportSize / 2).toVertex
 
     Model(
+      state = GameState.Start,
       ballStartPosition = start,
       scoreA = 0,
       scoreB = 0,
@@ -218,6 +265,19 @@ object Model:
           Collider.Box(Tags.PaddleB, b.toBoundingBox).makeStatic
         )
     )
+
+enum GameState:
+  case Start, Game
+
+  def onStartScreen: Boolean =
+    this match
+      case Start => true
+      case Game  => false
+
+  def onGameScreen: Boolean =
+    this match
+      case Start => false
+      case Game  => true
 
 enum GameEvent extends GlobalEvent:
   case SpeedUp, ScoreA, ScoreB, ResetBall

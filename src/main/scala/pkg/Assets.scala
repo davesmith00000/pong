@@ -6,7 +6,7 @@ object Assets:
 
   val smallFontName: AssetName = AssetName("smallFontName")
 
-  val fontMaterial: Material.ImageEffects = Material.ImageEffects(smallFontName).withAlpha(0.5)
+  val fontMaterial: Material.ImageEffects = Material.ImageEffects(smallFontName)
 
   val assets: Set[AssetType] =
     Set(

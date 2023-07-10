@@ -27,7 +27,7 @@ lazy val mygame =
     )
     .settings( // Indigo specific settings
       showCursor            := true,
-      title                 := "Pong",
+      title                 := "Infinite Pong!",
       gameAssetsDirectory   := "assets",
       windowStartWidth      := 550,
       windowStartHeight     := 400,
