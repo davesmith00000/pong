@@ -40,8 +40,12 @@ object Pong extends IndigoSandbox[Unit, Model]:
         world = World
           .empty[String]
           .withColliders(
-            Collider.Box("left goal", BoundingBox(-50, -100, 50, 600)).makeStatic,
-            Collider.Box("right goal", BoundingBox(550, -100, 50, 600)).makeStatic,
+            Collider
+              .Box("left goal", BoundingBox(-50, -100, 50, 600))
+              .makeStatic,
+            Collider
+              .Box("right goal", BoundingBox(550, -100, 50, 600))
+              .makeStatic,
             Collider.Box("top wall", BoundingBox(10, 10, 530, 10)).makeStatic,
             Collider
               .Box("bottom wall", BoundingBox(10, 380, 530, 10))
@@ -62,8 +66,8 @@ object Pong extends IndigoSandbox[Unit, Model]:
                 case _ =>
                   Batch()
               },
-            Collider.Box("paddle a", a.toBoundingBox),
-            Collider.Box("paddle b", b.toBoundingBox)
+            Collider.Box("paddle a", a.toBoundingBox).makeStatic,
+            Collider.Box("paddle b", b.toBoundingBox).makeStatic
           )
       )
     )
@@ -91,11 +95,10 @@ object Pong extends IndigoSandbox[Unit, Model]:
         }
 
     case GameEvent.SpeedUp =>
-      Outcome(
-        model.copy(world =
-          model.world.modifyByTag("ball")(b => b.withVelocity(b.velocity * 1.5))
-        )
-      )
+      val nextWorld =
+        model.world.modifyByTag("ball")(b => b.withVelocity(b.velocity * 1.5))
+
+      Outcome(model.copy(world = nextWorld))
 
     case GameEvent.ScoreA =>
       Outcome(model.copy(scoreA = model.scoreA + 1))
