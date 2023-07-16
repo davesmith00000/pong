@@ -42,9 +42,10 @@ object Pong extends IndigoSandbox[Size, Model]:
         Model.movePaddle(model.paddleB, context.inputState.mouse.position.y)
 
       model.world
-        .modifyByTag(Tags.PaddleA)(_.moveTo(model.paddleA.position.toVertex))
-        .modifyByTag(Tags.PaddleB)(_.moveTo(model.paddleB.position.toVertex))
-        .update(context.delta)
+        .update(context.delta)(
+          Model.paddleColliderA.moveTo(model.paddleA.position.toVertex),
+          Model.paddleColliderB.moveTo(model.paddleB.position.toVertex)
+        )
         .map { updatedWorld =>
           model.copy(
             paddleA = nextPaddleA,
@@ -128,7 +129,10 @@ object Pong extends IndigoSandbox[Size, Model]:
                     .at(context.running)
                 )
             ).alignCenter
-              .moveTo(context.startUpData.width / 2, context.startUpData.height - 60)
+              .moveTo(
+                context.startUpData.width / 2,
+                context.startUpData.height - 60
+              )
           )
         )
 
@@ -144,7 +148,15 @@ object Pong extends IndigoSandbox[Size, Model]:
                 Fonts.fontKey,
                 Assets.fontMaterial.withAlpha(0.5)
               ).alignCenter
-                .moveTo(context.startUpData.width / 2, 30)
+                .moveTo(context.startUpData.width / 2, 30),
+              Shape.Box(
+                model.paddleA,
+                Fill.Color(RGBA.White)
+              ),
+              Shape.Box(
+                model.paddleB,
+                Fill.Color(RGBA.White)
+              )
             ),
             Layer(
               model.world.presentNot(c =>
@@ -182,6 +194,12 @@ object Model:
   val velocityAfterReset         = Vector2(100, 100)
   val velocityMultiplier: Double = 1.5
 
+  val paddle = Rectangle(10, 50)
+  val paddleColliderA =
+    Collider.Box(Tags.PaddleA, BoundingBox.fromRectangle(paddle)).makeStatic
+  val paddleColliderB =
+    Collider.Box(Tags.PaddleB, BoundingBox.fromRectangle(paddle)).makeStatic
+
   def movePaddle(paddle: Rectangle, mouseY: Int): Rectangle =
     val top    = 20
     val bottom = 400 - 20 - paddle.height
@@ -195,9 +213,8 @@ object Model:
     paddle.moveTo(paddle.x, nextY)
 
   def initial(viewportSize: Size): Model =
-    val paddle = Rectangle(10, 50)
-    val gap    = 30
-    val a      = paddle.withPosition(gap, viewportSize.height / 2)
+    val gap = 30
+    val a   = paddle.withPosition(gap, viewportSize.height / 2)
     val b = paddle.withPosition(
       viewportSize.width - gap - paddle.width,
       viewportSize.height / 2
@@ -260,9 +277,7 @@ object Model:
 
               case _ =>
                 Batch()
-            },
-          Collider.Box(Tags.PaddleA, a.toBoundingBox).makeStatic,
-          Collider.Box(Tags.PaddleB, b.toBoundingBox).makeStatic
+            }
         )
     )
 
